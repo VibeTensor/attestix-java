@@ -11,6 +11,10 @@ canonical form **byte-for-byte** and is validated against the shared
 cross-language conformance vectors (`spec/verify/v1/vectors.json` in the parent
 repo, vendored here under `testdata/` and `src/test/resources/`).
 
+This port is **verifier-only**: it verifies credentials and delegation chains;
+it does not issue them. Issuance stays in the Attestix Python core
+(`pip install attestix`) or Attestix Cloud.
+
 - Parent project: <https://github.com/VibeTensor/attestix>
 - Bundle wire-format spec: <https://attestix.io/spec/bundle/v1>
 - Ed25519 via [BouncyCastle](https://www.bouncycastle.org/) (trusted, deterministic)

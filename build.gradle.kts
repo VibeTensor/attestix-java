@@ -1,24 +1,28 @@
+import com.vanniktech.maven.publish.SonatypeHost
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 plugins {
     `java-library`
-    `maven-publish`
-    signing
+    // Central Portal publishing (central.sonatype.com) + in-memory GPG signing.
+    // Replaces the legacy OSSRH (s01.oss.sonatype.org) flow, which the new
+    // Central Portal accounts do not use.
+    id("com.vanniktech.maven.publish") version "0.30.0"
 }
 
-group = "io.vibetensor"
+// Namespace VERIFIED on the Sonatype Central Portal (DNS TXT on vibetensor.com).
+// Was io.vibetensor (a domain we do not own) — corrected to the verified one.
+group = "com.vibetensor"
 version = "0.4.0"
-description = "Attestix offline credential verifier for Java — verify Ed25519 W3C VCs + UCAN delegations."
+description = "Attestix offline credential verifier for Java — verify Ed25519 W3C VCs + UCAN delegations issued by the Attestix Python core."
 
 java {
     // Library target is Java 11 for broad enterprise-JVM compatibility.
-    // CI builds and tests on Temurin 17.
+    // CI builds and tests on Temurin 17. (Sources + javadoc jars are added by
+    // the maven-publish plugin's JavaLibrary platform — do not add them here too.)
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
-    withSourcesJar()
-    withJavadocJar()
 }
 
 repositories {
@@ -48,59 +52,43 @@ tasks.test {
     }
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("mavenJava") {
-            from(components["java"])
-            artifactId = "attestix"
-            pom {
-                name.set("Attestix Java Verifier")
-                description.set(project.description)
-                url.set("https://github.com/VibeTensor/attestix-java")
-                licenses {
-                    license {
-                        name.set("Apache License, Version 2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("vibetensor")
-                        name.set("VibeTensor")
-                        url.set("https://attestix.io")
-                    }
-                }
-                scm {
-                    connection.set("scm:git:https://github.com/VibeTensor/attestix-java.git")
-                    developerConnection.set("scm:git:ssh://git@github.com/VibeTensor/attestix-java.git")
-                    url.set("https://github.com/VibeTensor/attestix-java")
-                }
-            }
-        }
-    }
-    repositories {
-        maven {
-            // Sonatype OSSRH / Central Portal staging. Credentials + GPG signing
-            // supplied via env/Gradle props at publish time (NOT committed).
-            name = "ossrh"
-            val releasesUrl = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-            val snapshotsUrl = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
-            url = if (version.toString().endsWith("SNAPSHOT")) snapshotsUrl else releasesUrl
-            credentials {
-                username = (project.findProperty("ossrhUsername") as String?) ?: System.getenv("OSSRH_USERNAME")
-                password = (project.findProperty("ossrhPassword") as String?) ?: System.getenv("OSSRH_PASSWORD")
-            }
-        }
-    }
-}
+// --- Maven Central (Central Portal) publishing ------------------------------
+// Credentials + GPG key are supplied ONLY at release time via env vars (set as
+// encrypted GitHub Actions secrets, never committed). The vanniktech plugin
+// reads the ORG_GRADLE_PROJECT_* names:
+//   ORG_GRADLE_PROJECT_mavenCentralUsername       -> Central Portal token user
+//   ORG_GRADLE_PROJECT_mavenCentralPassword       -> Central Portal token pass
+//   ORG_GRADLE_PROJECT_signingInMemoryKey         -> ASCII-armored GPG private key
+//   ORG_GRADLE_PROJECT_signingInMemoryKeyPassword -> GPG passphrase
+mavenPublishing {
+    // automaticRelease=true publishes straight through after Central validation
+    // (no manual "release" button in the portal). Flip to false to stage first.
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
+    signAllPublications()
 
-signing {
-    // Only sign when a signing key is configured (e.g. release publish). No-op in CI test.
-    isRequired = gradle.taskGraph.hasTask("publish")
-    val signingKey: String? = System.getenv("SIGNING_KEY")
-    val signingPassword: String? = System.getenv("SIGNING_PASSWORD")
-    if (signingKey != null) {
-        useInMemoryPgpKeys(signingKey, signingPassword)
+    coordinates("com.vibetensor", "attestix", version.toString())
+
+    pom {
+        name.set("Attestix Java Verifier")
+        description.set(project.description)
+        url.set("https://github.com/VibeTensor/attestix-java")
+        licenses {
+            license {
+                name.set("Apache License, Version 2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+            }
+        }
+        developers {
+            developer {
+                id.set("vibetensor")
+                name.set("VibeTensor")
+                url.set("https://attestix.io")
+            }
+        }
+        scm {
+            connection.set("scm:git:https://github.com/VibeTensor/attestix-java.git")
+            developerConnection.set("scm:git:ssh://git@github.com/VibeTensor/attestix-java.git")
+            url.set("https://github.com/VibeTensor/attestix-java")
+        }
     }
-    sign(publishing.publications["mavenJava"])
 }

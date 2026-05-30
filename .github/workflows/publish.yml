@@ -1,0 +1,66 @@
+# Publish the com.vibetensor:attestix artifact to Maven Central on a version tag.
+#
+# SETUP (one-time, human, in the GitHub web UI — never paste a secret into a PR,
+# commit, or chat). Add these as repository secrets
+# (Settings -> Secrets and variables -> Actions):
+#   MAVEN_CENTRAL_USERNAME   - Central Portal token username (central.sonatype.com -> Account -> Generate User Token)
+#   MAVEN_CENTRAL_PASSWORD   - Central Portal token password
+#   SIGNING_KEY              - ASCII-armored GPG PRIVATE key:
+#                               gpg --armor --export-secret-keys <KEYID>
+#                             (also publish the PUBLIC key once:
+#                               gpg --keyserver keyserver.ubuntu.com --send-keys <KEYID>)
+#   SIGNING_KEY_PASSWORD     - the GPG key passphrase
+#
+# RELEASE:
+#   - Bump `version` in build.gradle.kts, commit, then push a matching tag:
+#       git tag v0.4.0 && git push origin v0.4.0
+#   - This runs the test suite (conformance vectors) then publishes + releases.
+
+name: publish
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish to Maven Central
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v4.3.0
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      # actions/setup-java v4.7.0 (Temurin 17)
+      - uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # gradle/actions/setup-gradle v4.2.2
+      - uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b
+
+      - name: Verify tag matches build version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VER="$(grep -E '^version = ' build.gradle.kts | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+          echo "tag=$TAG build=$VER"
+          if [ "$TAG" != "$VER" ]; then
+            echo "::error::tag v$TAG does not match build.gradle.kts version $VER"
+            exit 1
+          fi
+
+      - name: Test (conformance vectors must pass before publish)
+        run: ./gradlew test --no-daemon
+
+      - name: Publish + release to Maven Central
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: ./gradlew publishToMavenCentral --no-daemon --no-configuration-cache

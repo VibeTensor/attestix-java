@@ -1,0 +1,5 @@
+# Keep shell scripts and Gradle wrapper LF-terminated so they run on CI (Linux).
+*.sh text eol=lf
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+*.jar binary

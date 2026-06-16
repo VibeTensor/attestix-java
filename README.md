@@ -3,8 +3,8 @@
 Offline verifier for **Attestix**-issued credentials, in pure Java. Verify
 Ed25519 [W3C Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) and
 [UCAN](https://github.com/ucan-wg/spec) delegation chains that were issued by the
-[Attestix](https://github.com/VibeTensor/attestix) Python core — **with no Python
-runtime needed**.
+[Attestix](https://github.com/VibeTensor/attestix) Python core (**with no Python
+runtime needed**).
 
 This is a language port of the Attestix verifier. It reproduces the Attestix
 canonical form **byte-for-byte** and is validated against the shared
@@ -27,7 +27,7 @@ Maven (once published to Maven Central):
 
 ```xml
 <dependency>
-  <groupId>io.vibetensor</groupId>
+  <groupId>com.vibetensor</groupId>
   <artifactId>attestix</artifactId>
   <version>0.4.0</version>
 </dependency>
@@ -36,7 +36,7 @@ Maven (once published to Maven Central):
 Gradle (Kotlin DSL):
 
 ```kotlin
-implementation("io.vibetensor:attestix:0.4.0")
+implementation("com.vibetensor:attestix:0.4.0")
 ```
 
 Requires Java 11+ at runtime. (CI builds and tests on Temurin 17.)
@@ -125,15 +125,21 @@ Every vector in `testdata/vectors.json` is asserted by
 ## Releasing to Maven Central
 
 This build is **publish-ready** (POM metadata, sources + javadoc jars, GPG
-signing wired) but is **not** auto-published. To cut a release:
+signing wired) via the Sonatype **Central Portal** (`central.sonatype.com`). To
+cut a release:
 
-1. Configure Sonatype OSSRH / Central Portal credentials
-   (`OSSRH_USERNAME`, `OSSRH_PASSWORD`) and a GPG key (`SIGNING_KEY`,
-   `SIGNING_PASSWORD`) as environment variables or Gradle properties.
-2. `./gradlew publish` to stage to OSSRH.
-3. Close & release the staging repository (or use the Central Portal UI).
+1. Configure Central Portal token credentials
+   (`mavenCentralUsername`, `mavenCentralPassword`) and an in-memory GPG key
+   (`signingInMemoryKey`, `signingInMemoryKeyPassword`) as `ORG_GRADLE_PROJECT_*`
+   environment variables or Gradle properties.
+2. Bump `version` in `build.gradle.kts`, commit, then push a matching `vX.Y.Z`
+   tag. The `publish` GitHub Actions workflow runs the conformance vectors and
+   then `./gradlew publishToMavenCentral`.
+3. With `automaticRelease = true`, Central validates and releases the artifact
+   automatically (no manual staging step). Flip that flag to stage first.
 
-No tokens are committed; publishing is a manual, credentialed step.
+No tokens are committed; release runs only on a version tag with the credentials
+supplied as encrypted GitHub Actions secrets.
 
 ## License
 

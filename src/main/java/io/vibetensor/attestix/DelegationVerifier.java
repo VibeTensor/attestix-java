@@ -19,7 +19,7 @@ import java.util.Set;
  *
  * <p>Delegations are <b>EdDSA JWTs</b> (compact serialization), NOT JCS-signed.
  * The signed message is {@code base64url(header) + "." + base64url(payload)}
- * (unpadded, per the JWT spec). Only {@code alg=EdDSA} is accepted —
+ * (unpadded, per the JWT spec). Only {@code alg=EdDSA} is accepted -
  * {@code alg:none} and any other algorithm are rejected.
  *
  * <p>Chain verification (mirrors {@code verify_delegation}):

@@ -11,15 +11,15 @@ plugins {
 }
 
 // Namespace VERIFIED on the Sonatype Central Portal (DNS TXT on vibetensor.com).
-// Was io.vibetensor (a domain we do not own) — corrected to the verified one.
+// Was io.vibetensor (a domain we do not own) - corrected to the verified one.
 group = "com.vibetensor"
-version = "0.4.0"
-description = "Attestix offline credential verifier for Java — verify Ed25519 W3C VCs + UCAN delegations issued by the Attestix Python core."
+version = "0.4.1"
+description = "Attestix offline credential verifier for Java - verify Ed25519 W3C VCs + UCAN delegations issued by the Attestix Python core."
 
 java {
     // Library target is Java 11 for broad enterprise-JVM compatibility.
     // CI builds and tests on Temurin 17. (Sources + javadoc jars are added by
-    // the maven-publish plugin's JavaLibrary platform — do not add them here too.)
+    // the maven-publish plugin's JavaLibrary platform - do not add them here too.)
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
     }

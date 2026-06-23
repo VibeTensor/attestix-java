@@ -4,7 +4,7 @@ package io.vibetensor.attestix;
  * Structured result of verifying a W3C Verifiable Credential.
  *
  * <p>{@link #verify()} is the AND of {@link #signatureValid()},
- * {@link #notExpired()}, and {@link #notRevoked()} — and additionally requires
+ * {@link #notExpired()}, and {@link #notRevoked()} - and additionally requires
  * {@link #structureValid()}.
  */
 public final class VerificationResult {

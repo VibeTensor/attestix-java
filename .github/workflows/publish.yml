@@ -1,6 +1,6 @@
 # Publish the com.vibetensor:attestix artifact to Maven Central on a version tag.
 #
-# SETUP (one-time, human, in the GitHub web UI — never paste a secret into a PR,
+# SETUP (one-time, human, in the GitHub web UI - never paste a secret into a PR,
 # commit, or chat). Add these as repository secrets
 # (Settings -> Secrets and variables -> Actions):
 #   MAVEN_CENTRAL_USERNAME   - Central Portal token username (central.sonatype.com -> Account -> Generate User Token)

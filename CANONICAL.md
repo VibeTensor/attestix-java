@@ -50,4 +50,4 @@ agree. **Signed payloads should avoid non-trivial floats** (e.g. `0.1 + 0.2`).
 - **UCAN**: EdDSA JWTs (compact form). The signed message is
   `base64url(header) + "." + base64url(payload)` (base64url **without** padding,
   per the JWT spec). Only `alg=EdDSA` is accepted.
-- **did:key**: `did:key:z` + base58btc(`0xed 0x01` ‖ raw-32-byte key).
+- **did:key**: `did:key:z` + base58btc(`0xed 0x01` || raw-32-byte key).

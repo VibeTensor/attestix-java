@@ -21,14 +21,14 @@ import java.util.TreeMap;
  *   <li>whole-number floats serialize as integers ({@code 1.0 -> 1}); ints stay
  *       ints including values &gt; 2^53;</li>
  *   <li>serialize with {@code json.dumps(sort_keys=True, separators=(",",":"),
- *       ensure_ascii=False)} — keys sorted by Unicode code point, no whitespace,
+ *       ensure_ascii=False)} - keys sorted by Unicode code point, no whitespace,
  *       raw UTF-8 with no {@code \\uXXXX} escapes for non-ASCII;</li>
  *   <li>encode UTF-8.</li>
  * </ol>
  *
  * <p>Divergence from strict RFC 8785 that callers MUST honour: RFC 8785 does
  * <i>not</i> normalize Unicode, but Attestix applies NFC. Non-whole floats are
- * formatted via Python's {@code repr}, not ECMAScript Ryū — so signed payloads
+ * formatted via Python's {@code repr}, not ECMAScript Ryū - so signed payloads
  * should avoid non-trivial floats. The conformance vectors only use integers and
  * {@code 1.5}, on which all ports agree.
  */
@@ -116,7 +116,7 @@ public final class Canonicalizer {
      * Write a string with NFC normalization and Python {@code json.dumps}-compatible
      * escaping: only {@code "}, {@code \\}, and the control chars U+0000–U+001F are
      * escaped (short escapes for b/t/n/f/r, {@code \\uXXXX} otherwise). With
-     * {@code ensure_ascii=False}, every other character — including all non-ASCII —
+     * {@code ensure_ascii=False}, every other character - including all non-ASCII -
      * is emitted raw (UTF-8 on encode). {@code /} is NOT escaped.
      */
     private static void writeString(StringBuilder sb, String rawValue) {

@@ -33,14 +33,14 @@ Maven (once published to Maven Central):
 <dependency>
   <groupId>com.vibetensor</groupId>
   <artifactId>attestix</artifactId>
-  <version>0.4.0</version>
+  <version>0.4.1</version>
 </dependency>
 ```
 
 Gradle (Kotlin DSL):
 
 ```kotlin
-implementation("com.vibetensor:attestix:0.4.0")
+implementation("com.vibetensor:attestix:0.4.1")
 ```
 
 Requires Java 11+ at runtime. (CI builds and tests on Temurin 17.)
@@ -96,7 +96,7 @@ byte[] canonical = Attestix.canonicalize("{\"b\":2,\"a\":1}");
 | `Attestix.verifyCredential(vcJson, issuerKey, now)` | Verify a W3C VC → `VerificationResult` |
 | `Attestix.verifyDelegationChain(parent, child, serverKey, now)` | Verify a UCAN chain → `DelegationResult` |
 | `Attestix.canonicalize(json)` | JCS-style canonical UTF-8 bytes |
-| `Attestix.decodeDidKey(did)` | `did:key:z…` → raw 32-byte Ed25519 key |
+| `Attestix.decodeDidKey(did)` | `did:key:z...` -> raw 32-byte Ed25519 key |
 
 `VerificationResult` exposes `signatureValid()`, `notExpired()`, `notRevoked()`,
 `structureValid()`, and `verify()`.

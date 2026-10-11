@@ -31,7 +31,7 @@ repositories {
 
 dependencies {
     // BouncyCastle: trusted, deterministic Ed25519 (RFC 8032) implementation.
-    api("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    api("org.bouncycastle:bcprov-jdk18on:1.86")
 
     testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")

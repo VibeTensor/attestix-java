@@ -69,9 +69,9 @@ public final class CredentialVerifier {
         }
 
         boolean signatureValid = false;
-        if (proofValue != null) {
-            byte[] canonical = Canonicalizer.canonicalize(signedPayload);
+        if (proofValue != null && issuerPublicKey != null && issuerPublicKey.length == 32) {
             try {
+                byte[] canonical = Canonicalizer.canonicalize(signedPayload);
                 byte[] sig = Base64Url.decode(proofValue);
                 signatureValid = Ed25519.verify(issuerPublicKey, canonical, sig);
             } catch (RuntimeException ex) {
@@ -79,7 +79,7 @@ public final class CredentialVerifier {
             }
         }
 
-        boolean notExpired = checkNotExpired(vc.get("expirationDate"), now);
+        boolean notExpired = !vc.containsKey("expirationDate") || checkNotExpired(vc.get("expirationDate"), now);
         boolean notRevoked = checkNotRevoked(vc.get("credentialStatus"));
 
         return new VerificationResult(signatureValid, notExpired, notRevoked, structureValid);
@@ -88,7 +88,7 @@ public final class CredentialVerifier {
     private static boolean checkNotExpired(Object expirationDate, Instant now) {
         if (!(expirationDate instanceof String) || ((String) expirationDate).isEmpty()) {
             // No expiry => never expires.
-            return true;
+            return false;
         }
         try {
             Instant exp = OffsetDateTime.parse((String) expirationDate).toInstant();

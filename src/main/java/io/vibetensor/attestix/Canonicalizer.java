@@ -28,7 +28,7 @@ import java.util.TreeMap;
  *
  * <p>Divergence from strict RFC 8785 that callers MUST honour: RFC 8785 does
  * <i>not</i> normalize Unicode, but Attestix applies NFC. Non-whole floats are
- * formatted via Python's {@code repr}, not ECMAScript Ryū - so signed payloads
+ * formatted via Python's {@code repr}, not ECMAScript Ryu - so signed payloads
  * should avoid non-trivial floats. The conformance vectors only use integers and
  * {@code 1.5}, on which all ports agree.
  */
@@ -83,6 +83,9 @@ public final class Canonicalizer {
         TreeMap<String, Object> sorted = new TreeMap<>(Canonicalizer::compareByCodePoint);
         for (Map.Entry<?, ?> e : map.entrySet()) {
             String key = nfc(String.valueOf(e.getKey()));
+            if (sorted.containsKey(key)) {
+                throw new IllegalArgumentException("Duplicate normalized object key");
+            }
             sorted.put(key, e.getValue());
         }
         sb.append('{');
@@ -114,7 +117,7 @@ public final class Canonicalizer {
 
     /**
      * Write a string with NFC normalization and Python {@code json.dumps}-compatible
-     * escaping: only {@code "}, {@code \\}, and the control chars U+0000–U+001F are
+     * escaping: only {@code "}, {@code \\}, and the control chars U+0000-U+001F are
      * escaped (short escapes for b/t/n/f/r, {@code \\uXXXX} otherwise). With
      * {@code ensure_ascii=False}, every other character - including all non-ASCII -
      * is emitted raw (UTF-8 on encode). {@code /} is NOT escaped.

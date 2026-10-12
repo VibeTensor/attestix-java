@@ -16,7 +16,7 @@ The checkout uses Bouncy Castle `bcprov-jdk18on` 1.86, as declared in
 ./gradlew build --no-daemon
 ```
 
-The configured publication coordinates are `com.vibetensor:attestix:0.4.1`.
+The configured publication coordinates are `com.vibetensor:attestix:0.4.2`.
 These coordinates do not establish Maven Central availability or publication of
 main-branch fixes. Build a reviewed checkout or confirm the contents of the
 release you select before depending on its verification behavior.

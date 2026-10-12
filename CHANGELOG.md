@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased
+## [0.4.2] - 2026-10-12
 
-These changes describe main-branch source. They do not announce a Maven Central
-release or imply that configured version 0.4.1 has been republished.
+Includes the verification fixes merged after 0.4.1; earlier artifacts remain
+unchanged.
 
 ### Verification
 

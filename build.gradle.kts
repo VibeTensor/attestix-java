@@ -13,7 +13,7 @@ plugins {
 // Namespace VERIFIED on the Sonatype Central Portal (DNS TXT on vibetensor.com).
 // Was io.vibetensor (a domain we do not own) - corrected to the verified one.
 group = "com.vibetensor"
-version = "0.4.1"
+version = "0.4.2"
 description = "Attestix offline credential verifier for Java - verify Ed25519 W3C VCs + UCAN delegations issued by the Attestix Python core."
 
 java {

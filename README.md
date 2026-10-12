@@ -1,150 +1,120 @@
 # Attestix Java Verifier
 
-Offline verifier for **Attestix**-issued credentials, in pure Java. Verify
-Ed25519 [W3C Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) and
-[UCAN](https://github.com/ucan-wg/spec) delegation chains that were issued by the
-[Attestix](https://github.com/VibeTensor/attestix) Python core (**with no Python
-runtime needed**).
+Offline Java verifier for Attestix Ed25519 credentials and UCAN-style
+compact JWT delegation chains. It needs no Python runtime and makes no network
+calls. It does not issue credentials or provide a presentation-verification API.
+See the [Attestix core](https://github.com/VibeTensor/attestix) for issuance.
 
-This is a language port of the Attestix verifier. It reproduces the Attestix
-canonical form **byte-for-byte** and is validated against the shared
-cross-language conformance vectors (`spec/verify/v1/vectors.json` in the parent
-repo, vendored here under `testdata/` and `src/test/resources/`).
+## Build the current source
 
-This port is **verifier-only**: it verifies credentials and delegation chains;
-it does not issue them. Issuance stays in the Attestix Python core
-(`pip install attestix`) or Attestix Cloud.
+Build with JDK 17; source and bytecode target Java 11 via `--release 11`.
+The checkout uses Bouncy Castle `bcprov-jdk18on` 1.86, as declared in
+[build.gradle.kts](build.gradle.kts).
 
-- Parent project: <https://github.com/VibeTensor/attestix>
-- Bundle wire-format spec: <https://attestix.io/spec/bundle/v1>
-- Ed25519 via [BouncyCastle](https://www.bouncycastle.org/) (trusted, deterministic)
-
-> **Canonical form note.** Attestix uses a **JCS-*style*** canonical form, **not
-> strict RFC 8785.** The load-bearing divergence: Attestix applies Unicode **NFC
-> normalization** to every string value and object key (RFC 8785 does not), and
-> whole-number floats collapse to integers (`1.0` → `1`). See
-> [`CANONICAL.md`](./CANONICAL.md) for the full rules.
-
-## Install
-
-Maven (once published to Maven Central):
-
-```xml
-<dependency>
-  <groupId>com.vibetensor</groupId>
-  <artifactId>attestix</artifactId>
-  <version>0.4.1</version>
-</dependency>
+```sh
+./gradlew test --no-daemon
+./gradlew build --no-daemon
 ```
 
-Gradle (Kotlin DSL):
+The configured publication coordinates are `com.vibetensor:attestix:0.4.1`.
+These coordinates do not establish Maven Central availability or publication of
+main-branch fixes. Build a reviewed checkout or confirm the contents of the
+release you select before depending on its verification behavior.
 
-```kotlin
-implementation("com.vibetensor:attestix:0.4.1")
-```
-
-Requires Java 11+ at runtime. (CI builds and tests on Temurin 17.)
-
-## Verify a credential (10 lines)
+## Verify a credential with a trusted key
 
 ```java
-import io.vibetensor.attestix.*;
+import io.vibetensor.attestix.Attestix;
+import io.vibetensor.attestix.DidKey;
+import io.vibetensor.attestix.VerificationResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 
-// The issuer's did:key (published out of band, e.g. in the agent card).
-byte[] issuerKey = DidKey.decode("did:key:z6Mko5TBPGKHkCxSgmf3aC6p6SGj2auwCfRmBydXJFEwL4ev");
-
-String vcJson = /* the credential JSON, e.g. read from a file */ "...";
-VerificationResult r = Attestix.verifyCredential(vcJson, issuerKey, Instant.now());
-
-System.out.println("signature valid: " + r.signatureValid());
-System.out.println("not expired:     " + r.notExpired());
-System.out.println("not revoked:     " + r.notRevoked());
-System.out.println("overall verify:  " + r.verify());   // AND of all checks
+public final class VerifyExample {
+    public static void main(String[] args) throws Exception {
+        if (args.length != 1) {
+            throw new IllegalArgumentException("usage: VerifyExample credential.json");
+        }
+        // Obtain and authenticate the expected issuer's key out of band.
+        byte[] issuerKey = DidKey.decode(
+            "did:key:z6Mko5TBPGKHkCxSgmf3aC6p6SGj2auwCfRmBydXJFEwL4ev");
+        String vcJson = Files.readString(Path.of(args[0]));
+        VerificationResult result = Attestix.verifyCredential(vcJson, issuerKey, Instant.now());
+        System.out.println("valid=" + result.verify());
+    }
+}
 ```
 
-## Verify a delegation chain
+This sample key is an example, not a trust anchor for arbitrary credentials.
+The caller supplies the trusted 32-byte issuer key. Verification does not
+resolve a key from `proof.verificationMethod` or independently check that the
+pinned key corresponds to the document's issuer identifier. Make that trust
+association in the application.
+
+## Credential behavior and errors
+
+- `VerificationResult` exposes `signatureValid()`, `notExpired()`,
+  `notRevoked()`, `structureValid()`, and their combined `verify()` verdict.
+- The signed payload excludes only top-level `proof` and `credentialStatus`.
+  NFC-normalized key collisions make signature verification fail.
+- Null or wrong-length pinned keys, invalid proof encoding, and canonicalization
+  errors do not pass signature verification.
+- Absent `expirationDate` means no expiry. A present null, non-string, empty, or
+  unparseable value fails the expiry check. Valid expiry requires `now < expiry`.
+- Embedded revocation status is read locally. Missing status does not establish
+  current revocation state; consult a trusted issuer status source separately.
+- Malformed JSON can throw `JsonException`; catch it at the input boundary.
+  Direct canonicalization can also throw for unsupported input. Do not interpret
+  any exception as a successful verification.
+- Structure checks concern the proof shape, not complete W3C schema validation.
+  This verifier does not perform JSON-LD processing or legal assessment.
+
+## Delegation verification
 
 ```java
-byte[] serverKey = DidKey.decode("did:key:z6Mko5TBPGKHkCxSgmf3aC6p6SGj2auwCfRmBydXJFEwL4ev");
-DelegationResult d = Attestix.verifyDelegationChain(parentJwt, childJwt, serverKey, Instant.now());
-// d.verify() == every JWT signature valid AND child att ⊆ parent att AND not expired
+DelegationResult result = Attestix.verifyDelegationChain(
+    parentJwt, childJwt, trustedServerKey, Instant.now());
+boolean valid = result.verify();
 ```
 
-UCAN delegations are EdDSA JWTs (compact form), **not** JCS-signed. Only
-`alg=EdDSA` is accepted (`alg:none` is rejected). Capability attenuation is
-enforced: a child's capabilities must be a subset of its parent's.
-
-## Decode a did:key
-
-```java
-byte[] rawEd25519 = Attestix.decodeDidKey("did:key:z6Mko5TBPGKHkCxSgmf3aC6p6SGj2auwCfRmBydXJFEwL4ev");
-// rawEd25519 is the 32-byte public key (multibase base58btc + 0xed01 multicodec prefix)
-```
-
-## Canonicalize JSON (the Attestix way)
-
-```java
-byte[] canonical = Attestix.canonicalize("{\"b\":2,\"a\":1}");
-// -> bytes of {"a":1,"b":2}  (keys sorted by code point, no whitespace, raw UTF-8, NFC)
-```
+Import `io.vibetensor.attestix.DelegationResult` for this fragment. The caller
+supplies the trusted server key used for every signature. Verification checks
+EdDSA signatures, parent/child expiry, the child's recursive `prf` signatures
+and expiry, repeated-`jti` cycles, and capability subset between the explicit
+parent and child. It does not independently enforce capability attenuation at
+every recursive ancestor, `nbf`, `iat`, audience policy, or live revocation.
+Apply the required application policy before authorizing an operation.
 
 ## Public API
 
 | Method | Purpose |
 |---|---|
-| `Attestix.verifyCredential(vcJson, issuerKey, now)` | Verify a W3C VC → `VerificationResult` |
-| `Attestix.verifyDelegationChain(parent, child, serverKey, now)` | Verify a UCAN chain → `DelegationResult` |
-| `Attestix.canonicalize(json)` | JCS-style canonical UTF-8 bytes |
-| `Attestix.decodeDidKey(did)` | `did:key:z...` -> raw 32-byte Ed25519 key |
+| `Attestix.verifyCredential(json, issuerKey, now)` | Verify a credential under the caller's trusted key. |
+| `Attestix.verifyDelegationChain(parent, child, serverKey, now)` | Verify the explicit pair and the child's proof ancestry. |
+| `Attestix.canonicalize(json)` | Produce canonical bytes or throw for invalid/unsupported input. |
+| `Attestix.decodeDidKey(did)` | Decode an Ed25519 `did:key` to a 32-byte public key. |
 
-`VerificationResult` exposes `signatureValid()`, `notExpired()`, `notRevoked()`,
-`structureValid()`, and `verify()`.
+## Canonical form and compatibility
 
-## Build & test
+See [CANONICAL.md](CANONICAL.md). Attestix uses NFC normalization, compact UTF-8
+JSON, normalized-key sorting, and arbitrary-precision integer handling; it is
+not strict RFC 8785. General floating-point interoperability is not guaranteed.
 
-```bash
-./gradlew test     # runs the conformance vectors
-./gradlew build    # jar + sources + javadoc
-```
+The shared vectors are vendored in [testdata/vectors.json](testdata/vectors.json)
+and [src/test/resources/vectors.json](src/test/resources/vectors.json).
+[ConformanceVectorsTest.java](src/test/java/io/vibetensor/attestix/ConformanceVectorsTest.java)
+checks those represented cases; [SecurityBoundariesTest.java](src/test/java/io/vibetensor/attestix/SecurityBoundariesTest.java)
+covers the hardened input boundaries. This is not a guarantee for every JSON
+value or every deployment policy.
 
-CI ([`.github/workflows/test.yml`](.github/workflows/test.yml)) builds and runs
-the vectors on Temurin 17 with SHA-pinned actions.
+## Release configuration
 
-## Conformance
-
-Every vector in `testdata/vectors.json` is asserted by
-`src/test/java/io/vibetensor/attestix/ConformanceVectorsTest.java`:
-
-| Vector | What it checks |
-|---|---|
-| `canon-001` | JCS-style canonical bytes (NFC, sorted keys, whole-float→int, big int) |
-| `didkey-001` | did:key decode (0xed01 multicodec, 32-byte key) + round-trip |
-| `vc-valid-001` | Valid VC → verify true |
-| `vc-tampered-001` | Tampered claim → signature invalid → verify false |
-| `vc-expired-001` | Expired VC → not_expired false → verify false |
-| `ucan-chain-valid-001` | Delegation chain, child att ⊆ parent att → verify true |
-| `ucan-chain-escalation-002` | Privilege escalation (`admin` not in parent) → verify false |
-
-## Releasing to Maven Central
-
-This build is **publish-ready** (POM metadata, sources + javadoc jars, GPG
-signing wired) via the Sonatype **Central Portal** (`central.sonatype.com`). To
-cut a release:
-
-1. Configure Central Portal token credentials
-   (`mavenCentralUsername`, `mavenCentralPassword`) and an in-memory GPG key
-   (`signingInMemoryKey`, `signingInMemoryKeyPassword`) as `ORG_GRADLE_PROJECT_*`
-   environment variables or Gradle properties.
-2. Bump `version` in `build.gradle.kts`, commit, then push a matching `vX.Y.Z`
-   tag. The `publish` GitHub Actions workflow runs the conformance vectors and
-   then `./gradlew publishToMavenCentral`.
-3. With `automaticRelease = true`, Central validates and releases the artifact
-   automatically (no manual staging step). Flip that flag to stage first.
-
-No tokens are committed; release runs only on a version tag with the credentials
-supplied as encrypted GitHub Actions secrets.
+The build configures sources/Javadoc artifacts, signing, and the Sonatype
+Central Portal. Publication is a separate maintainer operation requiring
+credentials and a reviewed version tag. Nothing in this README announces a new
+registry release or authorizes publishing artifacts.
 
 ## License
 
-[Apache-2.0](./LICENSE). See [`NOTICE`](./NOTICE).
+[Apache-2.0](LICENSE). See [NOTICE](NOTICE).

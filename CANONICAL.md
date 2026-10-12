@@ -1,53 +1,49 @@
-# Attestix canonical form (Java port notes)
+# Attestix canonical form in Java
 
-The Attestix canonical form is **JCS-*style*, NOT strict RFC 8785.** This port
-reproduces, byte-for-byte, the output of the Python reference
-`attestix/auth/crypto.py::canonicalize_json` (attestix 0.4.0). The vectors'
-`canonical_bytes_hex` is the oracle.
+The implementation follows the Attestix v1 JCS-style signing form for the
+represented conformance cases. It is not strict RFC 8785. The shared
+[test vectors](testdata/vectors.json) are the compatibility reference.
 
-## The rule
+## Implemented rules
 
-```
-canonical_bytes = NFC_normalize_recursive(obj)
-               |> json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-               |> encode("utf-8")
-```
+1. NFC-normalize each string value and object key.
+2. Reject distinct object keys that become identical after NFC normalization.
+3. Sort the normalized keys recursively by Unicode code point.
+4. Use compact separators, with no formatting whitespace.
+5. Emit non-ASCII strings as UTF-8; escape quotes, backslashes, and control
+   characters using JSON escapes.
+6. Parse integer tokens into `BigInteger`, preserving values such as
+   `9007199254740993` without JavaScript's number rounding.
+7. Normalize `BigDecimal` values with `stripTrailingZeros`; whole values emit
+   integers and remaining decimal values use the implementation's decimal form.
 
-with whole-number floats collapsed to integers.
+The public `Attestix.canonicalize(String)` first parses JSON. Malformed JSON
+throws `JsonException`. Unsupported values or normalized-key collisions can
+throw during canonicalization. Credential verification catches canonicalization
+errors in its signature check and returns `signatureValid=false`.
 
-## Exact behaviours this port implements
+## Numeric and parsing limits
 
-1. **NFC normalization**: every string **value** and every object **key** is
-   `Normalizer.normalize(s, Form.NFC)` before serialization. (`"cafe"+U+0301` →
-   `café`.) This is the main divergence from RFC 8785, which does *not* normalize.
-2. **Key sorting**: object keys sorted by Unicode **code point** ascending,
-   recursively. NFC is applied to keys *before* sorting.
-3. **Separators**: `,` between items, `:` between key and value. No whitespace.
-4. **Raw UTF-8, no `\uXXXX`**: non-ASCII characters are emitted as raw UTF-8
-   bytes (`ensure_ascii=False`). `é` = `c3 a9`, `☃` = `e2 98 83`, `😀` =
-   `f0 9f 98 80`.
-5. **Whole-number floats → integers**: `1.0` → `1`, `2.00` → `2`. A non-whole
-   float keeps its value: `1.5` → `1.5`. (Implemented via `BigDecimal`:
-   `stripTrailingZeros().scale() <= 0` means whole.)
-6. **Integers stay integers, arbitrary precision**: `9007199254740993` is
-   serialized exactly. This port parses integral JSON numbers into
-   `java.math.BigInteger`, so there is no `2^53` precision loss.
-7. **Control-char escaping**: only `"`, `\`, and U+0000 to U+001F are escaped,
-   using `\b \t \n \f \r` where applicable and `\uXXXX` otherwise. `/` is **not**
-   escaped. This matches Python's `json.dumps`.
+The vectors exercise integers and `1.5`. The implementation uses `BigDecimal`,
+not Python's binary floating-point serializer. Exact equivalence for arbitrary
+fractions, exponents, and signed-zero values is not established by those vectors.
+Prefer integer or string fields for signed data. Callers passing an already
+parsed Map must also preserve numeric precision; conversion to binary floating
+point can lose information before canonicalization starts.
 
-## Float caveat
+Collision rejection applies to distinct keys retained in the parsed object.
+It is not a guarantee that identical duplicate names in raw JSON are detected
+before the parser constructs its Map.
 
-For non-trivial floating-point values, Python `json.dumps` and ECMAScript Ryū can
-disagree. The conformance vectors only use integers and `1.5`, on which all ports
-agree. **Signed payloads should avoid non-trivial floats** (e.g. `0.1 + 0.2`).
+## Signed fields and encodings
 
-## Signing & encoding
-
-- **VC**: signed payload is the credential minus `proof` and `credentialStatus`,
-  canonicalized as above, Ed25519-signed; `proof.proofValue` is base64url **with
-  padding**.
-- **UCAN**: EdDSA JWTs (compact form). The signed message is
-  `base64url(header) + "." + base64url(payload)` (base64url **without** padding,
-  per the JWT spec). Only `alg=EdDSA` is accepted.
-- **did:key**: `did:key:z` + base58btc(`0xed 0x01` || raw-32-byte key).
+- A VC signature covers the credential minus `proof` and `credentialStatus`.
+  The verifier uses the caller's trusted issuer key, not unsigned proof metadata.
+- A UCAN signature covers the literal compact JWS signing input
+  `base64url(header) + "." + base64url(payload)`. It is not canonicalized JSON;
+  only `alg=EdDSA` is accepted.
+- Ed25519 public keys contain 32 bytes and signatures contain 64 bytes.
+- Attestix VC proofs use padded base64url. Delegation compact-JWT segments use
+  unpadded base64url.
+- An Ed25519 `did:key` is `did:key:z` followed by base58btc of the multicodec
+  bytes `0xed 0x01` and the raw public key.

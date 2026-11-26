@@ -115,6 +115,12 @@ Central Portal. Publication is a separate maintainer operation requiring
 credentials and a reviewed version tag. Nothing in this README announces a new
 registry release or authorizes publishing artifacts.
 
+## Support
+
+Support ongoing project maintenance through GitHub Sponsors.
+
+<a href="https://github.com/sponsors/VibeTensor"><img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?style=flat-square&logo=github" alt="GitHub Sponsors" /></a>
+
 ## License
 
 [Apache-2.0](LICENSE). See [NOTICE](NOTICE).
